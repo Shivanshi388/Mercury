@@ -1,0 +1,17 @@
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+
+.env
+.env.*
+!.env.example
+
+dist/
+build/
+.vite/
+
+venv/
+.venv/
+
+mercury-temp/

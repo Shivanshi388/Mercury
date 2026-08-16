@@ -1,0 +1,88 @@
+{
+  "regions": [
+    {
+      "id": "india",
+      "name": "India",
+      "flag": "🇮🇳",
+      "lat": 20.5937,
+      "lng": 78.9629,
+      "currency": "INR",
+      "marketSizeUSD": 4100000000000,
+      "growthRatePct": 6.8,
+      "competitionLevel": "high",
+      "avgMonthlyIncomeUSD": 450,
+      "internetPenetrationPct": 52,
+      "priceSensitivityIndex": 0.85
+    },
+    {
+      "id": "usa",
+      "name": "United States",
+      "flag": "🇺🇸",
+      "lat": 37.0902,
+      "lng": -95.7129,
+      "currency": "USD",
+      "marketSizeUSD": 27000000000000,
+      "growthRatePct": 2.5,
+      "competitionLevel": "very_high",
+      "avgMonthlyIncomeUSD": 6200,
+      "internetPenetrationPct": 92,
+      "priceSensitivityIndex": 0.35
+    },
+    {
+      "id": "germany",
+      "name": "Germany",
+      "flag": "🇩🇪",
+      "lat": 51.1657,
+      "lng": 10.4515,
+      "currency": "EUR",
+      "marketSizeUSD": 4400000000000,
+      "growthRatePct": 1.4,
+      "competitionLevel": "high",
+      "avgMonthlyIncomeUSD": 4300,
+      "internetPenetrationPct": 91,
+      "priceSensitivityIndex": 0.45
+    },
+    {
+      "id": "uae",
+      "name": "UAE",
+      "flag": "🇦🇪",
+      "lat": 23.4241,
+      "lng": 53.8478,
+      "currency": "AED",
+      "marketSizeUSD": 500000000000,
+      "growthRatePct": 4.2,
+      "competitionLevel": "medium",
+      "avgMonthlyIncomeUSD": 5100,
+      "internetPenetrationPct": 99,
+      "priceSensitivityIndex": 0.30
+    },
+    {
+      "id": "brazil",
+      "name": "Brazil",
+      "flag": "🇧🇷",
+      "lat": -14.2350,
+      "lng": -51.9253,
+      "currency": "BRL",
+      "marketSizeUSD": 2100000000000,
+      "growthRatePct": 3.1,
+      "competitionLevel": "medium",
+      "avgMonthlyIncomeUSD": 700,
+      "internetPenetrationPct": 81,
+      "priceSensitivityIndex": 0.72
+    },
+    {
+      "id": "japan",
+      "name": "Japan",
+      "flag": "🇯🇵",
+      "lat": 36.2048,
+      "lng": 138.2529,
+      "currency": "JPY",
+      "marketSizeUSD": 4200000000000,
+      "growthRatePct": 0.9,
+      "competitionLevel": "very_high",
+      "avgMonthlyIncomeUSD": 3400,
+      "internetPenetrationPct": 93,
+      "priceSensitivityIndex": 0.40
+    }
+  ]
+}
