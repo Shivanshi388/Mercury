@@ -1,18 +1,14 @@
+"""Mercury FastAPI backend.
+
+Endpoints:
+  GET  /health
+  POST /simulate
+  POST /what-if
+
+The what-if endpoint never asks the LLM to invent simulation metrics. The LLM
+(or deterministic parser) only extracts requested changes; both original and
+modified products are then passed through the same Mercury scoring engine.
 """
-Mercury - Member 3 Backend/API
-
-FastAPI service that connects the React frontend to the AI simulation
-and scoring layer.
-
-Run:
-    uvicorn main:app --reload --port 8000
-
-API:
-    GET  /health
-    POST /simulate
-    GET  /docs
-"""
-
 from __future__ import annotations
 
 import json
@@ -22,23 +18,16 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from scoring import calculate_scores, normalize_simulation_input
-
-
-# ---------------------------------------------------------------------------
-# App configuration
-# ---------------------------------------------------------------------------
+from scenario import apply_changes, extract_changes
 
 app = FastAPI(
     title="Mercury Simulation API",
-    description="Backend API connecting the Mercury React frontend to AI personas and scoring.",
-    version="1.0.0",
+    description="AI-assisted market simulation and natural-language what-if scenarios.",
+    version="2.0.0",
 )
-
-# During local development, allow the React dev server to call the API.
-# For production, replace "*" with the exact frontend origin.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,427 +37,303 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------------------------
-# Request / response models
-# ---------------------------------------------------------------------------
-
 class SimulationRequest(BaseModel):
-    """
-    Flexible request model so this backend can be combined with an existing
-    React frontend without forcing one exact form shape.
-    """
-
     model_config = ConfigDict(extra="allow")
-
-    product_name: str = Field(default="Unnamed Product")
-    product_description: str = Field(default="")
-    category: str = Field(default="General")
+    product_name: str = "Unnamed Product"
+    product_description: str = ""
+    category: str = "General"
     price: Optional[float] = Field(default=None, ge=0)
-    currency: str = Field(default="USD")
-    target_audience: str = Field(default="")
-    business_stage: str = Field(default="")
+    currency: str = "INR"
+    target_audience: str = ""
+    business_stage: str = ""
     regions: List[str] = Field(default_factory=list)
     countries: List[str] = Field(default_factory=list)
-    business_size: str = Field(default="")
+    business_size: str = ""
     production_capacity: Optional[float] = Field(default=None, ge=0)
     budget: Optional[float] = Field(default=None, ge=0)
-
-    # Accept a frontend-provided list of persona objects if available.
     personas: List[Dict[str, Any]] = Field(default_factory=list)
-
-    # Optional generic market data supplied by the frontend.
     market_data: Dict[str, Any] = Field(default_factory=dict)
 
 
-class PersonaResponse(BaseModel):
-    region: str
-    persona_name: str
-    profile: str
-    reaction: str
-    purchase_intent: int = Field(ge=0, le=100)
-    price_fit: int = Field(ge=0, le=100)
-    demand: int = Field(ge=0, le=100)
-    competition: int = Field(ge=0, le=100)
-    risk: int = Field(ge=0, le=100)
-    feedback: str
+class WhatIfRequest(BaseModel):
+    question: str = Field(min_length=2)
+    current_product: Dict[str, Any]
+    regions: List[str] = Field(default_factory=list)
 
-
-class SimulationResponse(BaseModel):
-    success: bool
-    product: Dict[str, Any]
-    results: List[Dict[str, Any]]
-    summary: Dict[str, Any]
-    ai_used: bool
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 DEFAULT_REGIONS = ["India", "United Arab Emirates", "United States", "Germany"]
-
 REGION_PROFILES: Dict[str, Dict[str, Any]] = {
-    "india": {
-        "income": 55,
-        "demand": 75,
-        "competition": 65,
-        "price_sensitivity": 78,
-        "digital_adoption": 72,
-    },
-    "united arab emirates": {
-        "income": 88,
-        "demand": 78,
-        "competition": 70,
-        "price_sensitivity": 42,
-        "digital_adoption": 90,
-    },
-    "uae": {
-        "income": 88,
-        "demand": 78,
-        "competition": 70,
-        "price_sensitivity": 42,
-        "digital_adoption": 90,
-    },
-    "united states": {
-        "income": 92,
-        "demand": 84,
-        "competition": 82,
-        "price_sensitivity": 45,
-        "digital_adoption": 93,
-    },
-    "usa": {
-        "income": 92,
-        "demand": 84,
-        "competition": 82,
-        "price_sensitivity": 45,
-        "digital_adoption": 93,
-    },
-    "germany": {
-        "income": 89,
-        "demand": 76,
-        "competition": 76,
-        "price_sensitivity": 50,
-        "digital_adoption": 88,
-    },
+    "india": {"income": 55, "demand": 75, "competition": 65, "price_sensitivity": 78, "digital_adoption": 72},
+    "united arab emirates": {"income": 88, "demand": 78, "competition": 70, "price_sensitivity": 42, "digital_adoption": 90},
+    "uae": {"income": 88, "demand": 78, "competition": 70, "price_sensitivity": 42, "digital_adoption": 90},
+    "united states": {"income": 92, "demand": 84, "competition": 82, "price_sensitivity": 45, "digital_adoption": 93},
+    "usa": {"income": 92, "demand": 84, "competition": 82, "price_sensitivity": 45, "digital_adoption": 93},
+    "germany": {"income": 89, "demand": 76, "competition": 76, "price_sensitivity": 50, "digital_adoption": 88},
+    "united kingdom": {"income": 86, "demand": 78, "competition": 78, "price_sensitivity": 52, "digital_adoption": 90},
+    "canada": {"income": 84, "demand": 77, "competition": 72, "price_sensitivity": 50, "digital_adoption": 89},
+    "japan": {"income": 82, "demand": 73, "competition": 78, "price_sensitivity": 56, "digital_adoption": 86},
+    "brazil": {"income": 55, "demand": 72, "competition": 65, "price_sensitivity": 76, "digital_adoption": 78},
+    "nigeria": {"income": 42, "demand": 68, "competition": 54, "price_sensitivity": 86, "digital_adoption": 70},
+    "australia": {"income": 88, "demand": 80, "competition": 74, "price_sensitivity": 48, "digital_adoption": 92},
 }
 
+
 def _clean_region(value: Any) -> str:
-    region = str(value).strip()
-    return region if region else "Unknown Region"
+    value = str(value or "").strip()
+    return value or "Unknown Region"
 
 
 def _selected_regions(payload: SimulationRequest) -> List[str]:
-    raw = payload.regions or payload.countries
-    if not raw:
-        raw = DEFAULT_REGIONS
-
-    # Keep order while removing duplicates.
-    result: List[str] = []
-    seen = set()
+    raw = payload.regions or payload.countries or DEFAULT_REGIONS
+    result, seen = [], set()
     for item in raw:
         region = _clean_region(item)
-        key = region.lower()
-        if key not in seen:
-            seen.add(key)
-            result.append(region)
+        if region.lower() not in seen:
+            seen.add(region.lower()); result.append(region)
     return result[:20]
 
 
-def _env_number(name: str, default: float) -> float:
-    try:
-        return float(os.getenv(name, default))
-    except (TypeError, ValueError):
-        return default
-
-
 def _fallback_persona(region: str, payload: SimulationRequest) -> Dict[str, Any]:
-    """
-    Deterministic fallback when no AI API key is configured or an AI request
-    fails. This keeps the demo usable offline.
-    """
-    profile = REGION_PROFILES.get(region.lower(), {
-        "income": 70,
-        "demand": 70,
-        "competition": 65,
-        "price_sensitivity": 55,
-        "digital_adoption": 75,
-    })
+    """Transparent deterministic persona fallback used without an API key."""
+    profile = REGION_PROFILES.get(region.lower(), {"income": 70, "demand": 70, "competition": 65, "price_sensitivity": 55, "digital_adoption": 75})
+    description = payload.product_description.lower()
+    target = payload.target_audience.lower()
+    category = payload.category.lower()
+    price = float(payload.price or 0)
 
-    base_demand = profile["demand"]
-    if payload.category:
-        category_bonus = 4 if len(payload.category.strip()) >= 3 else 0
-        base_demand = min(100, base_demand + category_bonus)
+    # A category-specific reference price gives price changes a real effect.
+    reference_prices_usd = {
+        "consumer electronics": 120, "software / saas": 50, "health & wellness": 60,
+        "beauty & personal care": 35, "food & beverage": 25, "apparel & fashion": 55,
+        "home & living": 70,
+    }
+    reference_prices_inr = {
+        "consumer electronics": 4999, "software / saas": 999, "health & wellness": 1499,
+        "beauty & personal care": 799, "food & beverage": 499, "apparel & fashion": 1499,
+        "home & living": 1999,
+    }
+    refs = reference_prices_inr if str(payload.currency).upper() == "INR" else reference_prices_usd
+    ref = refs.get(category, 999 if str(payload.currency).upper() == "INR" else 60)
+    price_ratio = price / max(ref, 1)
+    # Price fit declines more strongly in price-sensitive markets.
+    price_fit = max(15, min(98, 86 - (price_ratio - 1) * profile["price_sensitivity"] * 0.90))
 
-    price_fit = 70
-    if payload.price is not None:
-        # A simple demo heuristic: lower prices generally fit more
-        # price-sensitive markets, while higher-income markets tolerate them.
-        relative = profile["income"] - profile["price_sensitivity"]
-        price_fit = max(35, min(95, 65 + relative // 2))
+    demand = profile["demand"]
+    if any(k in description for k in ["ai", "analytics", "automation", "personalized", "recommendation"]):
+        demand += 4 if profile["digital_adoption"] >= 80 else 2
+    if "free trial" in description:
+        demand += 5
+    if any(k in target for k in ["student", "college", "early career"]):
+        if profile["price_sensitivity"] >= 65: demand += 4
+        else: demand += 1
+    if "working professional" in target and profile["digital_adoption"] >= 80:
+        demand += 3
+    if "affordability" in description or "affordable" in description:
+        demand += 3
 
-    purchase_intent = round(
-        0.45 * base_demand
-        + 0.35 * price_fit
-        + 0.20 * profile["digital_adoption"]
-    )
-
-    feedback = (
-        f"Potential customers in {region} show {purchase_intent}% estimated "
-        f"purchase intent. Consider localizing pricing, positioning, and messaging "
-        f"before launch."
-    )
+    demand = max(0, min(100, demand))
+    purchase_intent = round(0.45 * demand + 0.38 * price_fit + 0.17 * profile["digital_adoption"])
+    if "free trial" in description: purchase_intent += 4
+    risk = max(8, min(95, 100 - purchase_intent + profile["competition"] * 0.08))
 
     return {
         "region": region,
         "persona_name": f"{region} Market Persona",
-        "profile": (
-            f"Representative customer profile for {region}, considering local "
-            f"purchasing power, demand, digital adoption, and price sensitivity."
-        ),
-        "reaction": (
-            f"The persona is moderately interested in {payload.product_name}. "
-            f"Interest increases when the product's value is clearly communicated."
-        ),
-        "purchase_intent": int(purchase_intent),
-        "price_fit": int(price_fit),
-        "demand": int(base_demand),
+        "profile": f"Representative customer profile for {region}, shaped by purchasing power, demand, digital adoption and price sensitivity.",
+        "reaction": f"The simulated customer sees {purchase_intent}% purchase intent for {payload.product_name}. The strongest lever is perceived value versus price.",
+        "purchase_intent": int(max(0, min(100, purchase_intent))),
+        "price_fit": int(round(price_fit)),
+        "demand": int(demand),
         "competition": int(profile["competition"]),
-        "risk": int(max(10, 100 - purchase_intent)),
-        "feedback": feedback,
+        "risk": int(risk),
+        "feedback": f"Test pricing and positioning with customers in {region}; the simulation suggests price fit is {round(price_fit)}%.",
     }
 
 
 def _extract_json(text: str) -> Any:
-    """Extract JSON from plain JSON or a markdown code block."""
     text = text.strip()
-
     if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.I)
         text = re.sub(r"\s*```$", "", text)
-
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        match = re.search(r"(\[.*\]|\{.*\})", text, flags=re.DOTALL)
-        if not match:
-            raise ValueError("AI response did not contain valid JSON.")
+        match = re.search(r"(\[.*\]|\{.*\})", text, flags=re.S)
+        if not match: raise ValueError("AI response did not contain valid JSON")
         return json.loads(match.group(1))
 
 
 def _call_gemini(prompt: str) -> Optional[List[Dict[str, Any]]]:
-    """
-    Calls Gemini using the REST API only when GEMINI_API_KEY is configured.
-
-    This avoids making the API key visible to the React frontend.
-    If the key is missing or the request fails, the caller uses the
-    deterministic fallback personas.
-    """
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        return None
-
-    # Keep the model configurable so the team can change it without editing code.
+    if not api_key: return None
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    endpoint = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:generateContent?key={api_key}"
-    )
-
-    request_body = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.4,
-            "responseMimeType": "application/json",
-        },
-    }
-
-    # Standard library HTTP keeps installation simple.
+    endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    body = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"temperature": 0.4, "responseMimeType": "application/json"}}
     from urllib.request import Request, urlopen
     from urllib.error import HTTPError, URLError
-
-    request = Request(
-        endpoint,
-        data=json.dumps(request_body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
+    req = Request(endpoint, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urlopen(request, timeout=30) as response:
-            raw = response.read().decode("utf-8")
-        data = json.loads(raw)
-        text = data["candidates"][0]["content"]["parts"][0]["text"]
-        parsed = _extract_json(text)
-        if isinstance(parsed, dict):
-            parsed = parsed.get("personas", [])
-        if not isinstance(parsed, list):
-            raise ValueError("Expected a JSON list of personas.")
-        return parsed
+        with urlopen(req, timeout=30) as response: data = json.loads(response.read().decode())
+        parsed = _extract_json(data["candidates"][0]["content"]["parts"][0]["text"])
+        return parsed.get("personas", []) if isinstance(parsed, dict) else parsed
     except (HTTPError, URLError, KeyError, IndexError, ValueError, json.JSONDecodeError):
         return None
 
 
-def _generate_ai_personas(
-    payload: SimulationRequest,
-    regions: List[str],
-) -> Optional[List[Dict[str, Any]]]:
-    """Generate all regional personas in one AI request."""
+def _generate_ai_personas(payload: SimulationRequest, regions: List[str]) -> Optional[List[Dict[str, Any]]]:
     product = {
-        "name": payload.product_name,
-        "description": payload.product_description,
-        "category": payload.category,
-        "price": payload.price,
-        "currency": payload.currency,
+        "name": payload.product_name, "description": payload.product_description,
+        "category": payload.category, "price": payload.price, "currency": payload.currency,
         "target_audience": payload.target_audience,
-        "business_stage": payload.business_stage,
     }
-
     prompt = f"""
-You are the regional customer simulation engine for Mercury, an AI-powered
-market expansion simulator.
-
-Simulate one representative customer persona for each requested region.
-These are simulated personas, NOT real people and NOT actual survey results.
-
-PRODUCT:
-{json.dumps(product, ensure_ascii=False)}
-
-REGIONS:
-{json.dumps(regions, ensure_ascii=False)}
-
-Return ONLY valid JSON in this exact shape:
-{{
-  "personas": [
-    {{
-      "region": "string",
-      "persona_name": "string",
-      "profile": "short string",
-      "reaction": "short customer-style reaction",
-      "purchase_intent": 0,
-      "price_fit": 0,
-      "demand": 0,
-      "competition": 0,
-      "risk": 0,
-      "feedback": "short actionable feedback"
-    }}
-  ]
-}}
-
-Rules:
-- Every score must be an integer from 0 to 100.
-- purchase_intent and demand are higher when the product appears more attractive.
-- price_fit is higher when the stated price seems appropriate for the region.
-- competition is higher when competition is likely to be stronger.
-- risk is higher when entry appears harder or less certain.
-- Keep feedback concise and practical.
-- Do not claim the simulated responses are real customer research.
+Simulate one representative customer persona for every requested region for Mercury.
+These are simulations, not real surveys. Return ONLY JSON with a personas array.
+PRODUCT: {json.dumps(product, ensure_ascii=False)}
+REGIONS: {json.dumps(regions, ensure_ascii=False)}
+Each persona must contain: region, persona_name, profile, reaction, purchase_intent,
+price_fit, demand, competition, risk, feedback. All scores are integers 0-100.
+Price fit must respond to the stated price; purchase intent and demand must respond to
+product description, target audience, feature set, and price. Do not invent survey data.
 """
-
     return _call_gemini(prompt)
 
 
-def _merge_and_validate_personas(
-    regions: List[str],
-    ai_personas: Optional[List[Dict[str, Any]]],
-    payload: SimulationRequest,
-) -> tuple[List[Dict[str, Any]], bool]:
-    by_region: Dict[str, Dict[str, Any]] = {}
-
-    if ai_personas:
-        for item in ai_personas:
-            if not isinstance(item, dict):
-                continue
-            region = _clean_region(item.get("region"))
-            by_region[region.lower()] = item
-
-    personas: List[Dict[str, Any]] = []
-    ai_used = bool(ai_personas)
-    used_fallback = False
-
+def _merge_personas(regions: List[str], ai_personas: Optional[List[Dict[str, Any]]], payload: SimulationRequest):
+    by_region = {str(x.get("region", "")).lower(): x for x in (ai_personas or []) if isinstance(x, dict)}
+    personas, all_ai = [], bool(ai_personas)
     for region in regions:
         item = by_region.get(region.lower())
         if not item:
-            personas.append(_fallback_persona(region, payload))
-            used_fallback = True
-            continue
-
-        # Sanitize AI-generated numeric fields.
-        def score(name: str, default: int = 50) -> int:
-            try:
-                return max(0, min(100, int(float(item.get(name, default)))))
-            except (TypeError, ValueError):
-                return default
-
+            personas.append(_fallback_persona(region, payload)); all_ai = False; continue
+        def score(key):
+            try: return max(0, min(100, int(float(item.get(key, 50)))))
+            except (TypeError, ValueError): return 50
         personas.append({
-            "region": region,
-            "persona_name": str(item.get("persona_name", f"{region} Market Persona")),
-            "profile": str(item.get("profile", "")),
-            "reaction": str(item.get("reaction", "")),
-            "purchase_intent": score("purchase_intent"),
-            "price_fit": score("price_fit"),
-            "demand": score("demand"),
-            "competition": score("competition"),
-            "risk": score("risk"),
+            "region": region, "persona_name": str(item.get("persona_name", f"{region} Market Persona")),
+            "profile": str(item.get("profile", "")), "reaction": str(item.get("reaction", "")),
+            "purchase_intent": score("purchase_intent"), "price_fit": score("price_fit"),
+            "demand": score("demand"), "competition": score("competition"), "risk": score("risk"),
             "feedback": str(item.get("feedback", "")),
         })
-
-    # Report true only when every requested region was generated by AI.
-    if used_fallback:
-        ai_used = False
-
-    return personas, ai_used
+    return personas, all_ai
 
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
+def run_engine(payload: SimulationRequest) -> Dict[str, Any]:
+    regions = _selected_regions(payload)
+    normalized = normalize_simulation_input(payload.model_dump())
+    ai_personas = _generate_ai_personas(payload, regions)
+    personas, ai_used = _merge_personas(regions, ai_personas, payload)
+    results, summary = calculate_scores(normalized, personas)
+    return {"success": True, "product": normalized, "results": results, "summary": summary, "ai_used": ai_used}
+
+
+def _to_payload(data: Dict[str, Any], regions: List[str]) -> SimulationRequest:
+    # Accept either backend field names or the frontend-friendly names.
+    mapped = {
+        "product_name": data.get("product_name", data.get("name", "Unnamed Product")),
+        "product_description": data.get("product_description", data.get("description", "")),
+        "category": data.get("category", "General"), "price": data.get("price"),
+        "currency": data.get("currency", "INR"),
+        "target_audience": data.get("target_audience", data.get("targetCustomer", "")),
+        "regions": regions or data.get("regions") or data.get("countries") or DEFAULT_REGIONS,
+        "business_stage": data.get("business_stage", ""), "business_size": data.get("business_size", ""),
+        "production_capacity": data.get("production_capacity"), "budget": data.get("budget"),
+    }
+    return SimulationRequest(**mapped)
+
 
 @app.get("/")
-def root() -> Dict[str, str]:
-    return {
-        "name": "Mercury Simulation API",
-        "status": "running",
-        "docs": "/docs",
-    }
+def root():
+    return {"name": "Mercury Simulation API", "status": "running", "docs": "/docs"}
 
 
 @app.get("/health")
-def health() -> Dict[str, str]:
+def health():
     return {"status": "ok"}
 
 
-@app.post("/simulate", response_model=SimulationResponse)
-def simulate(payload: SimulationRequest) -> SimulationResponse:
-    """
-    Main endpoint used by React.
-
-    Flow:
-        React -> POST /simulate -> AI personas -> scoring -> JSON -> React
-    """
+@app.post("/simulate")
+def simulate(payload: SimulationRequest):
     try:
-        regions = _selected_regions(payload)
-        normalized_input = normalize_simulation_input(payload.model_dump())
-
-        ai_personas = _generate_ai_personas(payload, regions)
-        personas, ai_used = _merge_and_validate_personas(
-            regions, ai_personas, payload
-        )
-
-        results, summary = calculate_scores(
-            normalized_input,
-            personas,
-        )
-
-        return SimulationResponse(
-            success=True,
-            product=normalized_input,
-            results=results,
-            summary=summary,
-            ai_used=ai_used,
-        )
+        return run_engine(payload)
     except Exception as exc:
-        # Return a clean API error instead of exposing a traceback to React.
-        raise HTTPException(
-            status_code=500,
-            detail=f"Simulation failed: {str(exc)}",
-        ) from exc
+        raise HTTPException(status_code=500, detail=f"Simulation failed: {exc}") from exc
+
+
+@app.post("/what-if")
+def what_if(request: WhatIfRequest):
+    try:
+        current = dict(request.current_product)
+        current["regions"] = request.regions or current.get("regions") or DEFAULT_REGIONS
+        current_payload = _to_payload(current, current["regions"])
+        comparative = len(re.findall(r"(?:₹|rs\.?|inr|\$|usd|€|eur)?\s*[0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?", request.question, re.I)) >= 2 and any(w in request.question.lower() for w in ["which", "better", "perform"])
+        if comparative:
+            extracted = {"changes": [], "label": "Price alternatives"}
+            modified_dict = dict(current)
+            ui_changes = []
+        else:
+            extracted = extract_changes(request.question, current)
+            modified_dict, ui_changes = apply_changes(current, extracted)
+        modified_dict["regions"] = current["regions"]
+        modified_payload = _to_payload(modified_dict, current["regions"])
+
+        original = run_engine(current_payload)
+        modified = run_engine(modified_payload)
+
+        # Special case: questions such as "Which would perform better: ₹799 or ₹999?"
+        # are evaluated as two alternatives against the same current product.
+        alternatives = []
+        money_values = re.findall(r"(?:₹|rs\.?|inr|\$|usd|€|eur)?\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)", request.question, re.I)
+        numeric_prices = []
+        for raw in money_values:
+            try:
+                value = float(raw.replace(",", ""))
+                if value not in numeric_prices: numeric_prices.append(value)
+            except ValueError:
+                pass
+        if len(numeric_prices) >= 2 and any(w in request.question.lower() for w in ["which", "better", "perform"]):
+            for price in numeric_prices[:3]:
+                alt = dict(current)
+                alt["price"] = price
+                alt_result = run_engine(_to_payload(alt, current["regions"]))
+                alternatives.append({"price": price, "result": alt_result})
+            winner = max(alternatives, key=lambda x: x["result"]["summary"].get("average_success_score", 0))
+            modified = winner["result"]
+            modified_dict["price"] = winner["price"]
+            ui_changes = [{"field": "price", "label": "Winning price", "from": str(current.get("price")), "to": str(winner["price"])}]
+
+        metric_deltas = {}
+        for key in ["average_success_score", "average_scalability_score"]:
+            metric_deltas[key] = modified["summary"].get(key, 0) - original["summary"].get(key, 0)
+
+        # Explanation is generated from actual engine outputs; fallback is deterministic.
+        explanation = build_explanation(ui_changes, original, modified)
+        return {
+            "success": True,
+            "changes": ui_changes,
+            "scenario": {"label": extracted.get("label", "What-if scenario")},
+            "original": original,
+            "modified": modified,
+            "metric_deltas": metric_deltas,
+            "alternatives": alternatives,
+            "explanation": explanation,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"What-if simulation failed: {exc}") from exc
+
+
+def build_explanation(changes, original, modified) -> str:
+    old = original["summary"].get("average_success_score", 0)
+    new = modified["summary"].get("average_success_score", 0)
+    delta = new - old
+    direction = "improves" if delta > 0 else "reduces" if delta < 0 else "does not materially change"
+    change_text = "; ".join(f"{c['label']} {c['from']} → {c['to']}" for c in changes)
+    top = modified["summary"].get("best_region") or "the tested markets"
+    return (
+        f"Mercury simulated the requested changes ({change_text}) using the same engine as the current scenario. "
+        f"The average market success score changes from {old} to {new} ({delta:+d}), so the scenario {direction} overall fit. "
+        f"The strongest modified market is {top}. These are simulated decision-support scores, not guaranteed outcomes."
+    )
