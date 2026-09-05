@@ -1,4 +1,4 @@
-﻿export const MARKETS = [
+export const MARKETS = [
   { code: 'US', name: 'United States', region: 'North America', flag: '≡ƒç║≡ƒç╕', currency: 'USD', symbol: '$' },
   { code: 'CA', name: 'Canada', region: 'North America', flag: '≡ƒç¿≡ƒçª', currency: 'CAD', symbol: 'C$' },
   { code: 'MX', name: 'Mexico', region: 'North America', flag: '≡ƒç▓≡ƒç╜', currency: 'MXN', symbol: 'MX$' },
