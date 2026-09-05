@@ -1,5 +1,4 @@
-﻿import { useState } from 'react';
-import { MARKETS } from './markets';
+import { useState } from 'react';
 
 const CATEGORIES = [
   'Consumer Electronics',
@@ -18,66 +17,27 @@ const EMPTY = {
   category: CATEGORIES[0],
   price: '',
   targetCustomer: '',
-  country: 'IN',
   currency: 'INR',
 };
 
 export default function InputForm({ initialValue, onSubmit }) {
   const [form, setForm] = useState(initialValue || EMPTY);
 
-  // Find the currently selected country
-  const selectedMarket =
-    MARKETS.find((market) => market.code === form.country) || MARKETS[0];
-
-  // Update normal fields
-  const update = (key) => (e) => {
-    setForm((f) => ({
-      ...f,
-      [key]: e.target.value,
-    }));
-  };
-
-  // When country changes, automatically change the currency
-  const handleCountryChange = (e) => {
-    const countryCode = e.target.value;
-
-    const market =
-      MARKETS.find((item) => item.code === countryCode) || MARKETS[0];
-
-    setForm((f) => ({
-      ...f,
-      country: market.code,
-      currency: market.currency,
-    }));
-  };
+  const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
   const isValid =
-    form.name.trim() &&
-    form.description.trim() &&
-    form.price !== '' &&
-    form.targetCustomer.trim() &&
-    form.country;
+    form.name.trim() && form.description.trim() && form.price !== '' && form.targetCustomer.trim();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!isValid) return;
-
-    onSubmit({
-      ...form,
-      price: parseFloat(form.price),
-      country: form.country,
-      currency: selectedMarket.currency,
-    });
+    onSubmit({ ...form, price: parseFloat(form.price) });
   };
 
   return (
     <form className="panel" onSubmit={handleSubmit}>
-
-      {/* PRODUCT NAME */}
       <div className="field">
         <label htmlFor="name">Product name</label>
-
         <input
           id="name"
           type="text"
@@ -87,11 +47,8 @@ export default function InputForm({ initialValue, onSubmit }) {
         />
       </div>
 
-
-      {/* DESCRIPTION */}
       <div className="field">
         <label htmlFor="description">Description</label>
-
         <textarea
           id="description"
           rows={4}
@@ -101,108 +58,58 @@ export default function InputForm({ initialValue, onSubmit }) {
         />
       </div>
 
-
-      {/* COUNTRY / CATEGORY / PRICE */}
       <div className="field-row">
-
-        {/* COUNTRY */}
         <div className="field">
-          <label htmlFor="country">Country</label>
-
-          <select
-            id="country"
-            value={form.country || 'IN'}
-            onChange={handleCountryChange}
-          >
-            {MARKETS.map((market) => (
-              <option key={market.code} value={market.code}>
-                {market.flag} {market.name}
-              </option>
-            ))}
+          <label htmlFor="currency">Currency</label>
+          <select id="currency" value={form.currency || 'INR'} onChange={update('currency')}>
+            <option value="INR">INR — ₹</option>
+            <option value="USD">USD — $</option>
+            <option value="EUR">EUR — €</option>
           </select>
-
-          <span className="hint">
-            Currency: {selectedMarket.currency} ΓÇö {selectedMarket.symbol}
-          </span>
         </div>
-
-
-        {/* CATEGORY */}
         <div className="field">
           <label htmlFor="category">Category</label>
-
-          <select
-            id="category"
-            value={form.category}
-            onChange={update('category')}
-          >
-            {CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {category}
+          <select id="category" value={form.category} onChange={update('category')}>
+            {CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
         </div>
 
-
-        {/* PRICE */}
         <div className="field">
-          <label htmlFor="price">
-            Price ({selectedMarket.currency})
-          </label>
-
-          <div className="price-input-wrapper">
-            <span className="currency-symbol">
-              {selectedMarket.symbol}
-            </span>
-
-            <input
-              id="price"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="999"
-              value={form.price}
-              onChange={update('price')}
-            />
-          </div>
+          <label htmlFor="price">Price</label>
+          <input
+            id="price"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="999"
+            value={form.price}
+            onChange={update('price')}
+          />
         </div>
-
       </div>
 
-
-      {/* TARGET CUSTOMER */}
       <div className="field">
         <label htmlFor="target">Target customer</label>
-
         <input
           id="target"
           type="text"
-          placeholder="e.g. Urban professionals, 25ΓÇô40, health-conscious"
+          placeholder="e.g. Urban professionals, 25–40, health-conscious"
           value={form.targetCustomer}
-          onChange={update('targetCustomer')}
+          onChange={update('target')}
         />
-
-        <span className="hint">
-          A quick sketch of who this is built for ΓÇö personas are generated
-          from this.
-        </span>
+        <span className="hint">A quick sketch of who this is built for — personas are generated from this.</span>
       </div>
 
-
-      {/* SUBMIT */}
       <div className="actions-row">
         <span />
-
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={!isValid}
-        >
-          Choose markets ΓåÆ
+        <button type="submit" className="btn btn-primary" disabled={!isValid}>
+          Choose markets →
         </button>
       </div>
-
     </form>
   );
 }
