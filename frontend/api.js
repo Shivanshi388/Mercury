@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = 'https://mercury-te7m.vercel.app';
 
 async function request(path, body) {
   const response = await fetch(`${API_BASE}${path}`, {
