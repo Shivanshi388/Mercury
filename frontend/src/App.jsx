@@ -3,7 +3,7 @@ import InputForm from './components/InputForm';
 import MarketCard from './components/MarketCard';
 import Results from './components/Results';
 import { MARKETS } from './data/markets';
-import { runSimulation } from './utils/mockSimulate';
+import { runSimulation } from '../api';
 import './index.css';
 
 const STEPS = [

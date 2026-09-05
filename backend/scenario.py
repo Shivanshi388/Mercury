@@ -175,9 +175,126 @@ def _label_from_changes(changes: List[Dict[str, Any]]) -> str:
 
 
 def extract_changes(question: str, current: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract what-if changes.
+
+    Price percentage changes are handled deterministically first so that
+    phrases like "reduce the price by 20%" can NEVER be interpreted as
+    "set the price to 20".
+    """
+
+    q = question.lower().strip()
+
+    # ---------------------------------------------------------
+    # 1. HANDLE PERCENTAGE PRICE CHANGES FIRST
+    # ---------------------------------------------------------
+
+    pct = re.search(
+        r"(\d+(?:\.\d+)?)\s*%",
+        q
+    )
+
+    price_words = [
+        "price",
+        "cost",
+        "cheaper",
+        "lower",
+        "reduce",
+        "decrease",
+        "increase",
+        "raise",
+        "higher",
+        "expensive",
+    ]
+
+    if pct and any(word in q for word in price_words):
+        percentage = float(pct.group(1)) / 100
+
+        # Reduction
+        if any(
+            word in q
+            for word in [
+                "cheaper",
+                "lower",
+                "reduce",
+                "decrease",
+                "cut",
+                "drop",
+            ]
+        ):
+            multiplier = 1 - percentage
+
+        # Increase
+        else:
+            multiplier = 1 + percentage
+
+        old_price = float(current.get("price") or 0)
+        new_price = round(old_price * multiplier, 2)
+
+        return {
+            "changes": [
+                {
+                    "field": "price",
+                    "operation": "multiply",
+                    "value": multiplier,
+                }
+            ],
+            "label": f"Price {old_price:g} → {new_price:g}",
+        }
+
+    # ---------------------------------------------------------
+    # 2. HANDLE ABSOLUTE PRICE CHANGES
+    # ---------------------------------------------------------
+
+    absolute_price = None
+
+    if re.search(
+        r"(?:price|cost|charge|make it|set it)"
+        r"\D{0,25}"
+        r"(?:₹|rs\.?|inr|\$|usd|€|eur)?\s*"
+        r"[0-9][0-9,]*(?:\.[0-9]+)?",
+        q,
+    ):
+        absolute_price = _money(q)
+
+    if absolute_price is not None and any(
+        word in q
+        for word in [
+            "price",
+            "cost",
+            "charge",
+            "set it",
+            "make it",
+        ]
+    ):
+        return {
+            "changes": [
+                {
+                    "field": "price",
+                    "operation": "set",
+                    "value": absolute_price,
+                }
+            ],
+            "label": f"Price {absolute_price:g}",
+        }
+
+    # ---------------------------------------------------------
+    # 3. OTHERWISE USE GEMINI
+    # ---------------------------------------------------------
+
     ai = _call_gemini(question, current)
-    if ai and isinstance(ai.get("changes"), list) and ai["changes"]:
+
+    if (
+        ai
+        and isinstance(ai.get("changes"), list)
+        and ai["changes"]
+    ):
         return ai
+
+    # ---------------------------------------------------------
+    # 4. FALLBACK TO EXISTING DETERMINISTIC PARSER
+    # ---------------------------------------------------------
+
     return deterministic_extract(question, current)
 
 
