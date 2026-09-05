@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 
 const CATEGORIES = [
   'Consumer Electronics',
@@ -62,9 +62,9 @@ export default function InputForm({ initialValue, onSubmit }) {
         <div className="field">
           <label htmlFor="currency">Currency</label>
           <select id="currency" value={form.currency || 'INR'} onChange={update('currency')}>
-            <option value="INR">INR — ₹</option>
-            <option value="USD">USD — $</option>
-            <option value="EUR">EUR — €</option>
+            <option value="INR">INR â€” â‚¹</option>
+            <option value="USD">USD â€” $</option>
+            <option value="EUR">EUR â€” â‚¬</option>
           </select>
         </div>
         <div className="field">
@@ -97,19 +97,20 @@ export default function InputForm({ initialValue, onSubmit }) {
         <input
           id="target"
           type="text"
-          placeholder="e.g. Urban professionals, 25–40, health-conscious"
+          placeholder="e.g. Urban professionals, 25â€“40, health-conscious"
           value={form.targetCustomer}
-          onChange={update('target')}
+          onChange={update('targetCustomer')}
         />
-        <span className="hint">A quick sketch of who this is built for — personas are generated from this.</span>
+        <span className="hint">A quick sketch of who this is built for â€” personas are generated from this.</span>
       </div>
 
       <div className="actions-row">
         <span />
         <button type="submit" className="btn btn-primary" disabled={!isValid}>
-          Choose markets →
+          Choose markets â†’
         </button>
       </div>
     </form>
   );
 }
+
