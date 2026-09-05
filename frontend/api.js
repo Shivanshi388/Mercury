@@ -1,4 +1,4 @@
-const API_BASE = 'https://mercury-te7m.vercel.app';
+﻿const API_BASE = 'https://mercury-te7m.vercel.app';
 
 async function request(path, body) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -264,7 +264,7 @@ function adaptSimulationResponse(data, marketList = []) {
 
       flag:
         meta.flag ||
-        '🌐',
+        '≡ƒîÉ',
 
       // Correct currency for this market
       currency,
@@ -327,3 +327,4 @@ export async function generateProductImage(product) {
     name: 'AI-generated product image',
   };
 }
+

@@ -1,4 +1,4 @@
-import {
+﻿import {
   BarChart,
   Bar,
   XAxis,
@@ -98,7 +98,7 @@ export default function ScenarioComparison({ comparison }) {
             className="change-chip"
           >
             {c.label}:{' '}
-            <strong>{c.from}</strong> → <strong>{c.to}</strong>
+            <strong>{c.from}</strong> ΓåÆ <strong>{c.to}</strong>
           </span>
         ))}
       </div>
@@ -114,9 +114,9 @@ export default function ScenarioComparison({ comparison }) {
             >
               <span>
                 {alt.result.product?.currency === 'INR'
-                  ? '₹'
+                  ? 'Γé╣'
                   : alt.result.product?.currency === 'EUR'
-                  ? '€'
+                  ? 'Γé¼'
                   : '$'}
                 {alt.price}
               </span>
@@ -240,7 +240,7 @@ export default function ScenarioComparison({ comparison }) {
 
       <div className="reasoning-box">
         <div className="chat-label">
-          💡 MERCURY'S REASONING
+          ≡ƒÆí MERCURY'S REASONING
         </div>
 
         <p>{comparison.explanation}</p>

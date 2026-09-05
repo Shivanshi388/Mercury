@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { MARKETS } from './markets';
 
 const CATEGORIES = [
@@ -122,7 +122,7 @@ export default function InputForm({ initialValue, onSubmit }) {
           </select>
 
           <span className="hint">
-            Currency: {selectedMarket.currency} — {selectedMarket.symbol}
+            Currency: {selectedMarket.currency} ΓÇö {selectedMarket.symbol}
           </span>
         </div>
 
@@ -178,13 +178,13 @@ export default function InputForm({ initialValue, onSubmit }) {
         <input
           id="target"
           type="text"
-          placeholder="e.g. Urban professionals, 25–40, health-conscious"
+          placeholder="e.g. Urban professionals, 25ΓÇô40, health-conscious"
           value={form.targetCustomer}
           onChange={update('targetCustomer')}
         />
 
         <span className="hint">
-          A quick sketch of who this is built for — personas are generated
+          A quick sketch of who this is built for ΓÇö personas are generated
           from this.
         </span>
       </div>
@@ -199,7 +199,7 @@ export default function InputForm({ initialValue, onSubmit }) {
           className="btn btn-primary"
           disabled={!isValid}
         >
-          Choose markets →
+          Choose markets ΓåÆ
         </button>
       </div>
 

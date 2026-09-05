@@ -1,4 +1,4 @@
-function scoreTier(score) {
+﻿function scoreTier(score) {
   if (score >= 65) return 'high';
   if (score >= 45) return 'mid';
   return 'low';
@@ -11,7 +11,7 @@ function formatCurrency(amount, currency) {
     Number.isNaN(Number(amount)) ||
     !currency
   ) {
-    return '—';
+    return 'ΓÇö';
   }
 
   try {
@@ -68,7 +68,7 @@ export default function MarketCard({ market, selected, onToggle, score }) {
           </div>
         )}
 
-      {!scored && <span className="check">{selected ? '✓' : ''}</span>}
+      {!scored && <span className="check">{selected ? 'Γ£ô' : ''}</span>}
 
       {scored && (
         <span className={`score-badge ${scoreTier(score)}`}>

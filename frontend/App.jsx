@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import InputForm from './InputForm';
 import MarketCard from './MarketCard';
 import Results from './Results';
@@ -56,7 +56,7 @@ export default function App() {
       ...result,
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       label,
-      changeSummary: changes.map((c) => `${c.from} → ${c.to}`).join(' · '),
+      changeSummary: changes.map((c) => `${c.from} ΓåÆ ${c.to}`).join(' ┬╖ '),
     };
     setScenarios((items) => [...items, saved]);
   }
@@ -94,7 +94,7 @@ export default function App() {
     <div className="mercury-app">
       <header className="mercury-header">
         <div className="mercury-logo"><span className="mark" /><h1>MERCURY</h1><span>AI MARKET SIMULATION</span></div>
-        {product && <div className="header-product">{product.name} · {product.currency === 'INR' ? '₹' : '$'}{product.price}</div>}
+        {product && <div className="header-product">{product.name} ┬╖ {product.currency === 'INR' ? 'Γé╣' : '$'}{product.price}</div>}
       </header>
 
       <main className="mercury-main">
@@ -103,20 +103,20 @@ export default function App() {
             {STEPS.map((s, i) => <div key={s.key} className={`step-rail-item ${i === stepIndex ? 'active' : i < stepIndex ? 'done' : ''}`}><span className="step-rail-num mono">{s.num}</span><span className="step-rail-label">{s.label}</span></div>)}
           </div>
 
-          {apiError && <div className="api-error">⚠ {apiError}</div>}
+          {apiError && <div className="api-error">ΓÜá {apiError}</div>}
 
           {step === 'input' && <InputForm initialValue={product} onSubmit={handleProductSubmit} />}
 
           {step === 'markets' && (
             <div className="panel">
               <h2 style={{ fontSize: 16, marginBottom: 4 }}>Choose countries or regions to test</h2>
-              <p className="hint" style={{ color: 'var(--text-dim)', fontSize: 13 }}>Select as many as you like — Mercury will simulate {product?.name || 'your product'} in each one.</p>
+              <p className="hint" style={{ color: 'var(--text-dim)', fontSize: 13 }}>Select as many as you like ΓÇö Mercury will simulate {product?.name || 'your product'} in each one.</p>
               <div className="market-grid">{MARKETS.map((m) => <MarketCard key={m.code} market={m} selected={selectedCodes.includes(m.code)} onToggle={toggleMarket} />)}</div>
-              <div className="actions-row"><button className="btn btn-ghost" onClick={() => setStep('input')}>← Back</button><button className="btn btn-primary" disabled={!selectedCodes.length} onClick={handleRunSimulation}>Run simulation ({selectedCodes.length}) →</button></div>
+              <div className="actions-row"><button className="btn btn-ghost" onClick={() => setStep('input')}>ΓåÉ Back</button><button className="btn btn-primary" disabled={!selectedCodes.length} onClick={handleRunSimulation}>Run simulation ({selectedCodes.length}) ΓåÆ</button></div>
             </div>
           )}
 
-          {step === 'simulating' && <div className="simulating"><div className="pulse-ring" /><p className="msg">Generating regional personas and simulating responses…</p></div>}
+          {step === 'simulating' && <div className="simulating"><div className="pulse-ring" /><p className="msg">Generating regional personas and simulating responsesΓÇª</p></div>}
 
           {step === 'results' && results && (
             <div className="results-layout">
